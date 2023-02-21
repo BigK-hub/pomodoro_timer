@@ -3,7 +3,7 @@
 #pragma comment(lib, "User32.lib")
 #pragma comment(lib, "Winmm.lib")
 #include <sstream>
-#include <stdint.h>
+#include <cstdint>
 #include <string>
 #include <stdexcept>
 #include <vcruntime.h>
@@ -15,13 +15,14 @@
 #include "WinUser.h"
 #include <iomanip>
 #include "conio.h"
+#include <thread>
 
 using steady_clock = std::chrono::steady_clock;
-using hours = std::chrono::hours;
-using minutes = std::chrono::minutes;
-using microseconds = std::chrono::microseconds;
-using seconds = std::chrono::seconds;
-
+using chronoHours = std::chrono::hours;
+using chronoMinutes = std::chrono::minutes;
+using chronoSeconds = std::chrono::seconds;
+using chronoMilliseconds = std::chrono::milliseconds;
+using chronoMicroseconds = std::chrono::microseconds;
 constexpr size_t SCREEN_WIDTH = 1000;
 constexpr size_t SCREEN_HEIGHT = 640;
 
@@ -96,19 +97,20 @@ public:
 	olc::Key activationKey = olc::A;
 
 	int hours = 0;
-	int minutes = 25;
+	int minutes = 0;
 	int seconds = 0;
 
 	std::vector<int> time = {hours, minutes, seconds};
 	uint32_t currentIndex = 2;
 
 	Time_Input(){}
-	Time_Input(olc::PixelGameEngine& pge, olc::Key activationkey,olc::vi2d pos, bool isActive = false)
+	Time_Input(olc::PixelGameEngine& pge, olc::Key activationkey,olc::vi2d pos, bool isActive = false, std::vector<int> defaultTimes = {0,0,0})
 	{
 		this->pos = pos;
 		this->isActive = isActive;
 		this->pge = &pge;
 		this->activationKey = activationkey;
+		this->time = defaultTimes;
 	}
 	void draw(const olc::Pixel& textColor = olc::WHITE)
 	{
@@ -147,12 +149,12 @@ public:
 			if(pge->GetKey(olc::UP).bPressed ||pge->GetKey(olc::UP).bHeld)
 			{
 				time[currentIndex] = std::min(time[currentIndex]+1,(currentIndex == 0)? 24: 59);
-				Sleep(80);
+				std::this_thread::sleep_for(chronoMilliseconds(100));
 			}
 			if(pge->GetKey(olc::DOWN).bPressed||pge->GetKey(olc::DOWN).bHeld)
 			{
 				time[currentIndex] = std::max(time[currentIndex]-1, 0);
-				Sleep(80);
+				std::this_thread::sleep_for(chronoMilliseconds(100));
 			}
 			
 		}
@@ -171,25 +173,28 @@ public:
 	std::vector<Button> buttons{
 		Button(*this, olc::vi2d(SCREEN_WIDTH * 0.1, SCREEN_HEIGHT * 0.1), 200, 60, false, "Start"),
 		Button(*this, olc::vi2d(SCREEN_WIDTH * 0.1, SCREEN_HEIGHT * 0.2), 200, 60, false, "Pause"),
-		Button(*this, olc::vi2d(SCREEN_WIDTH * 0.1, SCREEN_HEIGHT * 0.3), 200, 60, false, "Reset")
+		Button(*this, olc::vi2d(SCREEN_WIDTH * 0.1, SCREEN_HEIGHT * 0.3), 200, 60, false, "Reset"),
+		Button(*this, olc::vi2d(SCREEN_WIDTH * 0.1, SCREEN_HEIGHT * 0.4), 200, 60, false, "Productive"),
+		Button(*this, olc::vi2d(SCREEN_WIDTH * 0.1, SCREEN_HEIGHT * 0.5), 200, 60, false, "Break")
+
 		};
 
 	std::vector<Time_Input> timeInputs{
-		Time_Input(*this,olc::P, olc::vi2d(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.1),false),
-		Time_Input(*this,olc::B, olc::vi2d(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.3),false)
+		Time_Input(*this,olc::P, olc::vi2d(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.1),false,{0,25,0}),
+		Time_Input(*this,olc::B, olc::vi2d(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.3),false,{0,10,0})
 		};
 
 	timePoint timerStart = steady_clock::now();
-	microseconds currentTimerState = microseconds(0);
+	chronoMicroseconds currentTimerState = chronoMicroseconds(0);
 
-	hours hoursPassed = hours(0);
-	minutes minutesPassed = minutes(0);
- 	seconds secondsPassed = seconds(0);
+	chronoHours hoursPassed = chronoHours(0);
+	chronoMinutes minutesPassed = chronoMinutes(0);
+ 	chronoSeconds secondsPassed = chronoSeconds(0);
 
-	microseconds timeLeft = microseconds(0);
-	hours hoursLeft = hours(0);
-	minutes minutesLeft = minutes(0);
- 	seconds secondsLeft = seconds(0);
+	chronoMicroseconds timeLeft = chronoMicroseconds(0);
+	chronoHours hoursLeft = chronoHours(0);
+	chronoMinutes minutesLeft = chronoMinutes(0);
+ 	chronoSeconds secondsLeft = chronoSeconds(0);
 
 	long long elapsedTime = 0;
 	bool isTimerRunning = false;
@@ -197,8 +202,8 @@ public:
     bool isPaused = false;
 	bool isBreakTime = false;
 
-	microseconds productiveTime = std::chrono::duration_cast<microseconds>(minutes(25));
-	microseconds breakeTime = std::chrono::duration_cast<microseconds>(minutes(10));
+	chronoMicroseconds productiveTime = std::chrono::duration_cast<chronoMicroseconds>(chronoMinutes(25));
+	chronoMicroseconds breakTime = std::chrono::duration_cast<chronoMicroseconds>(chronoMinutes(10));
 
 	Example()
 	{
@@ -227,6 +232,12 @@ public:
 		buttons[2].draw();
 		buttons[2].button_collision();
 
+		buttons[3].draw();
+		buttons[3].button_collision();
+
+        buttons[4].draw();
+		buttons[4].button_collision();
+
 		timeInputs[0].draw(olc::BLACK);
 		timeInputs[1].draw(olc::BLACK);
 
@@ -239,29 +250,30 @@ public:
 			timeInputs[1].isActive = false;
 		}
 
-		timeLeft = productiveTime - currentTimerState;
+		timeLeft = ((!isBreakTime)? productiveTime : breakTime) - currentTimerState;
 
-		hoursLeft = std::chrono::duration_cast<hours>(timeLeft) ;
-		minutesLeft = std::chrono::duration_cast<minutes>(timeLeft) - minutes(hoursLeft);
-		secondsLeft = std::chrono::duration_cast<seconds>(timeLeft) -seconds(minutesLeft) -seconds(hoursLeft) ;
+		hoursLeft = std::chrono::duration_cast<chronoHours>(timeLeft) ;
+		minutesLeft = std::chrono::duration_cast<chronoMinutes>(timeLeft) - chronoMinutes(hoursLeft);
+		secondsLeft = std::chrono::duration_cast<chronoSeconds>(timeLeft) -chronoSeconds(minutesLeft) -chronoSeconds(hoursLeft) ;
 		
 		std::stringstream ss;
-		ss << ((!isBreakTime)? "Productive time:\n": "Break time: \n\n")
+		ss << ((!isBreakTime)? "Productive time:\n": "Break time: \n")
 		   << std::setw(2)<< std::setfill('0')<< hoursLeft.count() <<":" 
 		   << std::setw(2)<< std::setfill('0')<< minutesLeft.count() <<":" 
 		   << std::setw(2)<< std::setfill('0')<< secondsLeft.count();
 
 		DrawStringDecal(olc::vf2d(SCREEN_HEIGHT *0.5 ,SCREEN_HEIGHT *0.8),ss.str(), olc::BLACK, {2.0,2.0});
-		
+		ss.str("");
+
 		if(isTimerRunning && isTimerOver == false && !isPaused)
 		{
-			currentTimerState = microseconds(elapsedTime) + std::chrono::duration_cast<microseconds>((steady_clock::now() - timerStart));
+			currentTimerState = chronoMicroseconds(elapsedTime) + std::chrono::duration_cast<chronoMicroseconds>((steady_clock::now() - timerStart));
 
-           	hoursPassed = std::chrono::duration_cast<hours>(currentTimerState);
-			minutesPassed = std::chrono::duration_cast<minutes>(currentTimerState) - std::chrono::duration_cast<minutes>(hoursPassed);
-            secondsPassed = std::chrono::duration_cast<seconds>(currentTimerState)- std::chrono::duration_cast<seconds>(minutesPassed);
+           	hoursPassed = std::chrono::duration_cast<chronoHours>(currentTimerState);
+			minutesPassed = std::chrono::duration_cast<chronoMinutes>(currentTimerState) - std::chrono::duration_cast<chronoMinutes>(hoursPassed);
+            secondsPassed = std::chrono::duration_cast<chronoSeconds>(currentTimerState)- std::chrono::duration_cast<chronoSeconds>(minutesPassed);
 
-            isTimerOver = (currentTimerState.count() >= productiveTime.count());
+            isTimerOver = (currentTimerState.count() >= (!isBreakTime)?productiveTime.count():breakTime.count());
 		}
 		else if(isTimerOver == true)
 		{
@@ -277,7 +289,7 @@ public:
 			if(!isTimerRunning && !isPaused)
 			{
 				std::vector<int> time = (!isBreakTime)? timeInputs[0].getTime() : timeInputs[1].getTime();
-				productiveTime = std::chrono::duration_cast<microseconds>(hours(time[0]) + minutes(time[1]) + seconds(time[2]));
+				((!isBreakTime)? productiveTime : breakTime) = std::chrono::duration_cast<chronoMicroseconds>(chronoHours(time[0]) + chronoMinutes(time[1]) + chronoSeconds(time[2]));
 				timerStart = steady_clock::now();
 			}
 			else if (isPaused)
@@ -295,7 +307,7 @@ public:
 			{
 				isTimerRunning = false;
 				isPaused = true;
-				elapsedTime += std::chrono::duration_cast<microseconds>(steady_clock::now() - timerStart).count();
+				elapsedTime += std::chrono::duration_cast<chronoMicroseconds>(steady_clock::now() - timerStart).count();
 				PlaySound("sounds/pause2.wav",NULL,SND_SYNC);
 			}
 			buttons[1].isPressed = false;
@@ -303,16 +315,16 @@ public:
 		if(buttons[2].isPressed)
 		{
 			timerStart = steady_clock::now();
-			currentTimerState = microseconds(0);
+			currentTimerState = chronoMicroseconds(0);
 
-			hoursPassed = hours(0);
-			minutesPassed = minutes(0);
-			secondsPassed = seconds(0);
+			hoursPassed = chronoHours(0);
+			minutesPassed = chronoMinutes(0);
+			secondsPassed = chronoSeconds(0);
 
-			timeLeft = microseconds(0);
-			hoursLeft = hours(0);
-			minutesLeft = minutes(0);
-			secondsLeft = seconds(0);
+			timeLeft = chronoMicroseconds(0);
+			hoursLeft = chronoHours(0);
+			minutesLeft = chronoMinutes(0);
+			secondsLeft = chronoSeconds(0);
 			
 			elapsedTime = 0;
 			isTimerRunning = false;
@@ -320,6 +332,17 @@ public:
 			isPaused = false;
 			
 			buttons[2].isPressed = false;
+		}
+		if(buttons[3].isPressed)
+		{
+			isBreakTime = false;
+			buttons[3].isPressed = false;
+
+		}
+		if(buttons[4].isPressed)
+		{
+			isBreakTime = true;
+			buttons[4].isPressed = false;
 		}
 		return true;
 	}
