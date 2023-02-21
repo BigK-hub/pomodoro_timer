@@ -4,7 +4,7 @@ a software for a timer, which can be used for studying or various other things y
 current state:
 default time is set to 25 minutes.
 
-you as the user can adjust the time by pressing "p" and using left and right adjust the timer in the upper right corner.
+you as the user can adjust the time by pressing ```p``` and using left and right adjust the timer in the upper right corner.
 using upp or down you can increment or decrement the time. Upon starting the timer, your input will be used as the time.
 
 The "pause" button can be used during the countdown to pause the timer and can be resumed using the start button,
