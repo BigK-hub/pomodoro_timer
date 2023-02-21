@@ -1,9 +1,10 @@
+
+#define OLC_PGE_APPLICATION
+#pragma comment(lib, "User32.lib")
+#pragma comment(lib, "Winmm.lib")
 #include <sstream>
 #include <stdint.h>
 #include <string>
-#pragma comment(lib, "User32.lib")
-#pragma comment(lib, "Winmm.lib")
-#define OLC_PGE_APPLICATION
 #include <stdexcept>
 #include <vcruntime.h>
 #include "olcPixelGameEngine.h"
@@ -26,9 +27,8 @@ constexpr size_t SCREEN_HEIGHT = 640;
 
 //TODO:
 /*
-- [ ] get input from user
+- [x] get input from user
 - [ ] implement break time
-
 */
 class Button
 {
@@ -128,11 +128,11 @@ public:
 		pge->DrawString(pos.x + hoursDim.x*3 + minutesDim.x*3,pos.y,ss.str(),(currentIndex == 2 && isActive)? olc::RED : textColor,3);
 		ss.str(std::string());
 	}
-	void keyInput()
+	bool keyInput()
 	{
 		if(pge->GetKey(activationKey).bPressed)
 		{
-			isActive = true;
+			isActive = !isActive;
 		}
 		if (isActive)
 		{
@@ -156,6 +156,7 @@ public:
 			}
 			
 		}
+		return isActive;
 	}
 	std::vector<int> getTime()
 	{
@@ -172,7 +173,12 @@ public:
 		Button(*this, olc::vi2d(SCREEN_WIDTH * 0.1, SCREEN_HEIGHT * 0.2), 200, 60, false, "Pause"),
 		Button(*this, olc::vi2d(SCREEN_WIDTH * 0.1, SCREEN_HEIGHT * 0.3), 200, 60, false, "Reset")
 		};
-	Time_Input timeInput = Time_Input(*this,olc::P, olc::vi2d(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.1),false);
+
+	std::vector<Time_Input> timeInputs{
+		Time_Input(*this,olc::P, olc::vi2d(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.1),false),
+		Time_Input(*this,olc::B, olc::vi2d(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.3),false)
+		};
+
 	timePoint timerStart = steady_clock::now();
 	microseconds currentTimerState = microseconds(0);
 
@@ -189,8 +195,10 @@ public:
 	bool isTimerRunning = false;
     bool isTimerOver = false;
     bool isPaused = false;
-	
+	bool isBreakTime = false;
+
 	microseconds productiveTime = std::chrono::duration_cast<microseconds>(minutes(25));
+	microseconds breakeTime = std::chrono::duration_cast<microseconds>(minutes(10));
 
 	Example()
 	{
@@ -219,49 +227,56 @@ public:
 		buttons[2].draw();
 		buttons[2].button_collision();
 
-		timeInput.draw(olc::BLACK);
-		timeInput.keyInput();
+		timeInputs[0].draw(olc::BLACK);
+		timeInputs[1].draw(olc::BLACK);
+
+		if(timeInputs[1].keyInput())
+		{
+			timeInputs[0].isActive = false;
+		}
+		if(timeInputs[0].keyInput())
+		{
+			timeInputs[1].isActive = false;
+		}
 
 		timeLeft = productiveTime - currentTimerState;
 
 		hoursLeft = std::chrono::duration_cast<hours>(timeLeft) ;
-		minutesLeft = std::chrono::duration_cast<minutes>(timeLeft) - hoursLeft;
-		secondsLeft = std::chrono::duration_cast<seconds>(timeLeft) - minutesLeft;
+		minutesLeft = std::chrono::duration_cast<minutes>(timeLeft) - minutes(hoursLeft);
+		secondsLeft = std::chrono::duration_cast<seconds>(timeLeft) -seconds(minutesLeft) -seconds(hoursLeft) ;
 		
 		std::stringstream ss;
-		
-		ss << std::setw(2)<< std::setfill('0')<<hoursLeft.count() <<":" 
-		   << std::setw(2)<<std::setfill('0')<< minutesLeft.count() <<":" 
-		   << std::setw(2)<<std::setfill('0')<< secondsLeft.count();
+		ss << ((!isBreakTime)? "Productive time:\n": "Break time: \n\n")
+		   << std::setw(2)<< std::setfill('0')<< hoursLeft.count() <<":" 
+		   << std::setw(2)<< std::setfill('0')<< minutesLeft.count() <<":" 
+		   << std::setw(2)<< std::setfill('0')<< secondsLeft.count();
 
 		DrawStringDecal(olc::vf2d(SCREEN_HEIGHT *0.5 ,SCREEN_HEIGHT *0.8),ss.str(), olc::BLACK, {2.0,2.0});
 		
 		if(isTimerRunning && isTimerOver == false && !isPaused)
 		{
 			currentTimerState = microseconds(elapsedTime) + std::chrono::duration_cast<microseconds>((steady_clock::now() - timerStart));
-           	hoursPassed = std::chrono::duration_cast<hours>(currentTimerState); //- std::chrono::duration_cast<seconds>(minutesAmount);
+
+           	hoursPassed = std::chrono::duration_cast<hours>(currentTimerState);
 			minutesPassed = std::chrono::duration_cast<minutes>(currentTimerState) - std::chrono::duration_cast<minutes>(hoursPassed);
             secondsPassed = std::chrono::duration_cast<seconds>(currentTimerState)- std::chrono::duration_cast<seconds>(minutesPassed);
 
             isTimerOver = (currentTimerState.count() >= productiveTime.count());
-			
 		}
 		else if(isTimerOver == true)
 		{
-			std::cout <<"time elapsed";
 			isTimerRunning = false;
 			isTimerOver = false;
 			elapsedTime = 0;
     		PlaySound("sounds/finish.wav",NULL,SND_SYNC);
 		}
 
-
 		if(buttons[0].isPressed)
 		{
 			//timer
 			if(!isTimerRunning && !isPaused)
 			{
-				std::vector<int> time = timeInput.getTime();
+				std::vector<int> time = (!isBreakTime)? timeInputs[0].getTime() : timeInputs[1].getTime();
 				productiveTime = std::chrono::duration_cast<microseconds>(hours(time[0]) + minutes(time[1]) + seconds(time[2]));
 				timerStart = steady_clock::now();
 			}
@@ -271,8 +286,6 @@ public:
 				isPaused = false;
 			}
 			isTimerRunning = true;
-			//PlaySound("sounds/start1.wav",NULL,SND_SYNC);
-            //runTimer(std::chrono::duration_cast<microseconds>(PROD_TIME).count());
 			buttons[0].isPressed = false;
 			PlaySound("sounds/explosion.wav",NULL,SND_SYNC);
 		}
