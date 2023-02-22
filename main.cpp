@@ -16,6 +16,7 @@
 #include <iomanip>
 #include "conio.h"
 #include <thread>
+#include <cmath>
 
 using steady_clock = std::chrono::steady_clock;
 using chronoHours = std::chrono::hours;
@@ -185,13 +186,13 @@ public:
 		};
 
 	timePoint timerStart = steady_clock::now();
-	chronoMicroseconds currentTimerState = chronoMicroseconds(0);
+	chronoSeconds currentTimerState = chronoSeconds(0);
 
 	chronoHours hoursPassed = chronoHours(0);
 	chronoMinutes minutesPassed = chronoMinutes(0);
  	chronoSeconds secondsPassed = chronoSeconds(0);
 
-	chronoMicroseconds timeLeft = chronoMicroseconds(0);
+	chronoSeconds timeLeft = chronoSeconds(0);
 	chronoHours hoursLeft = chronoHours(0);
 	chronoMinutes minutesLeft = chronoMinutes(0);
  	chronoSeconds secondsLeft = chronoSeconds(0);
@@ -202,8 +203,8 @@ public:
     bool isPaused = false;
 	bool isBreakTime = false;
 
-	chronoMicroseconds productiveTime = std::chrono::duration_cast<chronoMicroseconds>(chronoMinutes(25));
-	chronoMicroseconds breakTime = std::chrono::duration_cast<chronoMicroseconds>(chronoMinutes(10));
+	chronoSeconds productiveTime = std::chrono::duration_cast<chronoSeconds>(chronoMinutes(25));
+	chronoSeconds breakTime = std::chrono::duration_cast<chronoSeconds>(chronoMinutes(10));
 
 	Example()
 	{
@@ -249,46 +250,13 @@ public:
 		{
 			timeInputs[1].isActive = false;
 		}
-
-		timeLeft = ((!isBreakTime)? productiveTime : breakTime) - currentTimerState;
-
-		hoursLeft = std::chrono::duration_cast<chronoHours>(timeLeft) ;
-		minutesLeft = std::chrono::duration_cast<chronoMinutes>(timeLeft) - chronoMinutes(hoursLeft);
-		secondsLeft = std::chrono::duration_cast<chronoSeconds>(timeLeft) - chronoSeconds(minutesLeft) -chronoSeconds(hoursLeft) ;
 		
-		std::stringstream ss;
-		ss << ((!isBreakTime)? "Productive time:\n": "Break time: \n")
-		   << std::setw(2)<< std::setfill('0')<< hoursLeft.count() <<":" 
-		   << std::setw(2)<< std::setfill('0')<< minutesLeft.count() <<":" 
-		   << std::setw(2)<< std::setfill('0')<< secondsLeft.count();
-
-		DrawStringDecal(olc::vf2d(SCREEN_HEIGHT *0.5 ,SCREEN_HEIGHT *0.8),ss.str(), olc::BLACK, {2.0,2.0});
-		
-
-		if(isTimerRunning && isTimerOver == false && !isPaused)
-		{
-			currentTimerState = chronoMicroseconds(elapsedTime) + std::chrono::duration_cast<chronoMicroseconds>((steady_clock::now() - timerStart));
-
-           	hoursPassed = std::chrono::duration_cast<chronoHours>(currentTimerState);
-			minutesPassed = std::chrono::duration_cast<chronoMinutes>(currentTimerState) - std::chrono::duration_cast<chronoMinutes>(hoursPassed);
-            secondsPassed = std::chrono::duration_cast<chronoSeconds>(currentTimerState) - std::chrono::duration_cast<chronoSeconds>(minutesPassed) - chronoSeconds(hoursLeft);
-            isTimerOver = (currentTimerState.count() >= ((!isBreakTime)?productiveTime.count() : breakTime.count()));
-		}
-		else if(isTimerOver == true)
-		{
-			isTimerRunning = false;
-			isTimerOver = false;
-			elapsedTime = 0;
-    		PlaySound("sounds/finish.wav",NULL,SND_SYNC);
-		}
-
 		if(buttons[0].isPressed)
 		{
-			
 			if(!isTimerRunning && !isPaused)
 			{
 				std::vector<int> time = (!isBreakTime)? timeInputs[0].getTime() : timeInputs[1].getTime();
-				((!isBreakTime)? productiveTime : breakTime) = std::chrono::duration_cast<chronoMicroseconds>(chronoHours(time[0]) + chronoMinutes(time[1]) + chronoSeconds(time[2]));
+				((!isBreakTime)? productiveTime : breakTime) = std::chrono::duration_cast<chronoSeconds>(chronoHours(time[0]) + chronoMinutes(time[1]) + chronoSeconds(time[2]));
 				timerStart = steady_clock::now();
 			}
 			else if (isPaused)
@@ -306,7 +274,7 @@ public:
 			{
 				isTimerRunning = false;
 				isPaused = true;
-				elapsedTime += std::chrono::duration_cast<chronoMicroseconds>(steady_clock::now() - timerStart).count();
+				elapsedTime += std::chrono::duration_cast<chronoSeconds>(steady_clock::now() - timerStart).count();
 				PlaySound("sounds/pause2.wav",NULL,SND_SYNC);
 			}
 			buttons[1].isPressed = false;
@@ -314,15 +282,15 @@ public:
 		if(buttons[2].isPressed)
 		{
 			std::vector<int> time = (!isBreakTime)? timeInputs[0].getTime() : timeInputs[1].getTime();
-			((!isBreakTime)? productiveTime : breakTime) = std::chrono::duration_cast<chronoMicroseconds>(chronoHours(time[0]) + chronoMinutes(time[1]) + chronoSeconds(time[2]));
+			((!isBreakTime)? productiveTime : breakTime) = std::chrono::duration_cast<chronoSeconds>(chronoHours(time[0]) + chronoMinutes(time[1]) + chronoSeconds(time[2]));
 			timerStart = steady_clock::now();
-			currentTimerState = chronoMicroseconds(0);
+			currentTimerState = chronoSeconds(0);
 
 			hoursPassed = chronoHours(0);
 			minutesPassed = chronoMinutes(0);
 			secondsPassed = chronoSeconds(0);
 
-			timeLeft = chronoMicroseconds(0);
+			timeLeft = chronoSeconds(0);
 			hoursLeft = chronoHours(0);
 			minutesLeft = chronoMinutes(0);
 			secondsLeft = chronoSeconds(0);
@@ -339,17 +307,16 @@ public:
 			if(isBreakTime)
 			{
 				timerStart = steady_clock::now();
-				currentTimerState = chronoMicroseconds(0);
+				currentTimerState = chronoSeconds(0);
 
 				hoursPassed = chronoHours(0);
 				minutesPassed = chronoMinutes(0);
 				secondsPassed = chronoSeconds(0);
 
-				timeLeft = chronoMicroseconds(0);
+				timeLeft = chronoSeconds(0);
 				hoursLeft = chronoHours(0);
 				minutesLeft = chronoMinutes(0);
 				secondsLeft = chronoSeconds(0);
-				
 			}
 			isBreakTime = false;
 			isTimerRunning = false;
@@ -364,13 +331,13 @@ public:
 			if(!isBreakTime)
 			{
 				timerStart = steady_clock::now();
-				currentTimerState = chronoMicroseconds(0);
+				currentTimerState = chronoSeconds(0);
 
 				hoursPassed = chronoHours(0);
 				minutesPassed = chronoMinutes(0);
 				secondsPassed = chronoSeconds(0);
 
-				timeLeft = chronoMicroseconds(0);
+				timeLeft = chronoSeconds(0);
 				hoursLeft = chronoHours(0);
 				minutesLeft = chronoMinutes(0);
 				secondsLeft = chronoSeconds(0);
@@ -382,6 +349,37 @@ public:
 			isPaused = false;
 			buttons[4].isPressed = false;
 		}
+		if(isTimerRunning && isTimerOver == false && !isPaused)
+		{
+			currentTimerState = chronoSeconds(elapsedTime) + std::chrono::duration_cast<chronoSeconds>((steady_clock::now() - timerStart));
+
+           	hoursPassed = std::chrono::duration_cast<chronoHours>(currentTimerState);
+			minutesPassed = std::chrono::duration_cast<chronoMinutes>(currentTimerState) - std::chrono::duration_cast<chronoMinutes>(hoursPassed);
+            secondsPassed = currentTimerState - std::chrono::duration_cast<chronoSeconds>(minutesPassed) - chronoSeconds(hoursLeft);
+            isTimerOver = (currentTimerState.count() >= ((!isBreakTime) ? productiveTime.count() : breakTime.count()));
+		}
+		else if(isTimerOver == true)
+		{
+			isTimerRunning = false;
+			isTimerOver = false;
+			elapsedTime = 0;
+    		PlaySound("sounds/finish.wav",NULL,SND_SYNC);
+		}
+
+		timeLeft = ((!isBreakTime)? productiveTime : breakTime) - currentTimerState;
+		
+		hoursLeft = std::chrono::duration_cast<chronoHours>(timeLeft);
+		minutesLeft = std::chrono::duration_cast<chronoMinutes>(timeLeft) - chronoMinutes(hoursLeft);
+		secondsLeft = timeLeft - chronoSeconds(minutesLeft) - chronoSeconds(hoursLeft);
+		
+		std::stringstream ss;
+		ss << ((!isBreakTime)? "Productive time:\n": "Break time: \n")
+		   << std::setw(2)<< std::setfill('0')<< hoursLeft.count() <<":" 
+		   << std::setw(2)<< std::setfill('0')<< minutesLeft.count() <<":" 
+		   << std::setw(2)<< std::setfill('0')<< secondsLeft.count();
+
+		DrawStringDecal(olc::vf2d(SCREEN_HEIGHT *0.5 ,SCREEN_HEIGHT *0.8),ss.str(), olc::BLACK, {2.0,2.0});
+		
 		return true;
 	}
 };
