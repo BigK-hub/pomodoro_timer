@@ -101,7 +101,7 @@ public:
 	int seconds = 0;
 
 	std::vector<int> time = {hours, minutes, seconds};
-	uint32_t currentIndex = 2;
+	int currentIndex = 2;
 
 	Time_Input(){}
 	Time_Input(olc::PixelGameEngine& pge, olc::Key activationkey,olc::vi2d pos, bool isActive = false, std::vector<int> defaultTimes = {0,0,0})
@@ -140,11 +140,11 @@ public:
 		{
 			if(pge->GetKey(olc::LEFT).bPressed)
 			{
-				currentIndex = std::max(currentIndex-1,uint32_t(0));
+				currentIndex = std::max(currentIndex - 1, 0);
 			}
 			if(pge->GetKey(olc::RIGHT).bPressed)
 			{
-				currentIndex = std::min(currentIndex+1,uint32_t(2));
+				currentIndex = std::min(currentIndex + 1 , 2 );
 			}
 			if(pge->GetKey(olc::UP).bPressed ||pge->GetKey(olc::UP).bHeld)
 			{
