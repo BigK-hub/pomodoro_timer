@@ -1,22 +1,28 @@
 
 #include <stdint.h>
 #define OLC_PGE_APPLICATION
-#pragma comment(lib, "User32.lib")
-#pragma comment(lib, "Winmm.lib")
+
 #include <sstream>
 #include <cstdint>
 #include <string>
 #include <stdexcept>
-#include <vcruntime.h>
 #include "olcPixelGameEngine.h"
 #include <iostream>
 #include <vector>
 #include <chrono>
+#include <iomanip>
+//#include <conio.h>
+#include <thread>
+#include <future>
+
+
+#if defined(_WIN32) || defined(_WIN64)
+#pragma comment(lib, "User32.lib")
+#pragma comment(lib, "Winmm.lib")
+#include <vcruntime.h>
 #include "Windows.h"
 #include "WinUser.h"
-#include <iomanip>
-#include "conio.h"
-#include <thread>
+#endif
 
 using steady_clock = std::chrono::steady_clock;
 using chronoHours = std::chrono::hours;
@@ -27,11 +33,7 @@ using chronoMicroseconds = std::chrono::microseconds;
 constexpr size_t SCREEN_WIDTH = 1000;
 constexpr size_t SCREEN_HEIGHT = 640;
 
-//TODO:
-/*
-- [x] get input from user
-- [ ] implement break time
-*/
+
 class Button
 {
 public:
@@ -54,7 +56,7 @@ public:
 		this->pos = pos;
 		this->isPressed = isPressed;
 		this->text = text;
-		this->textDim = {pge.GetTextSize(text)};
+		this->textDim = {pge.GetTextSize(text).x,pge.GetTextSize(text).y};
 		this->pge = &pge;
 	}
 	void draw(const olc::Pixel& textColor = olc::WHITE) 
@@ -95,10 +97,17 @@ void handle_button_interface(std::vector<Button>& buttons)
 	{
 		buttons[i].draw();
 		buttons[i].button_collision();
+		//void(std::async(std::launch::async,&Button::draw, &buttons[i],olc::WHITE));
+		//void(std::async(std::launch::async,&Button::button_collision, &buttons[i]));
 	}
 	
 }
-
+void play_sound(const char* __restrict path)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+	PlaySound(path, NULL, SND_SYNC);
+	#endif
+}
 
 class Time_Input
 {
@@ -216,7 +225,8 @@ public:
 		Time_Input(*this,olc::P, olc::vi2d(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.1),false,{0,25,0}, "Productive"),
 		Time_Input(*this,olc::B, olc::vi2d(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.2),false,{0,10,0}, "Break")
 		};
-
+	std::future<void> future;
+	
 	timePoint timerStart = steady_clock::now();
 	chronoSeconds currentTimerState = chronoSeconds(0);
 
@@ -255,7 +265,8 @@ public:
 	{
         FillRect(0,0,SCREEN_WIDTH,SCREEN_HEIGHT,olc::Pixel(204, 255, 204));
 		
-		handle_button_interface( buttons);
+		handle_button_interface(buttons);
+		
 		handle_time_inputs(timeInputs);
 		handle_button_collision_behaviour(buttons);
 		
@@ -298,7 +309,7 @@ public:
 			
 			isTimerRunning = true;
 			buttons[0].isPressed = false;
-			PlaySound("sounds/explosion.wav",NULL,SND_SYNC);
+			future =std::async(std::launch::async,[&]{play_sound("sounds/explosion.wav");});
 		}
 		if(buttons[1].isPressed)
 		{
@@ -307,7 +318,7 @@ public:
 				isTimerRunning = false;
 				isPaused = true;
 				elapsedTime += std::chrono::duration_cast<chronoSeconds>(steady_clock::now() - timerStart).count();
-				PlaySound("sounds/pause2.wav",NULL,SND_SYNC);
+				future = std::async(std::launch::async,[&]{play_sound("sounds/pause2.wav");});
 			}
 			buttons[1].isPressed = false;
 		}
@@ -398,7 +409,8 @@ public:
 			isTimerRunning = false;
 			isTimerOver = false;
 			elapsedTime = 0;
-    		PlaySound("sounds/finish.wav",NULL,SND_SYNC);
+			future = std::async(std::launch::async ,[&]{play_sound("sounds/finish.wav");});
+			
 		}
 
 		timeLeft = ((!isBreakTime)? productiveTime : breakTime) - currentTimerState;
