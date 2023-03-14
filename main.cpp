@@ -105,7 +105,7 @@ void handle_button_interface(std::vector<Button>& buttons)
 void play_sound(const char* __restrict path)
 {
 	#if defined(_WIN32) || defined(_WIN64)
-	PlaySound(path, NULL, SND_SYNC);
+	PlaySound(path, NULL, SND_ASYNC);
 	#endif
 }
 
@@ -226,7 +226,7 @@ public:
 		Time_Input(*this,olc::B, olc::vi2d(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.2),false,{0,10,0}, "Break")
 		};
 	std::future<void> future;
-	
+
 	timePoint timerStart = steady_clock::now();
 	chronoSeconds currentTimerState = chronoSeconds(0);
 
@@ -309,7 +309,7 @@ public:
 			
 			isTimerRunning = true;
 			buttons[0].isPressed = false;
-			future =std::async(std::launch::async,[&]{play_sound("sounds/explosion.wav");});
+			play_sound("sounds/explosion.wav");
 		}
 		if(buttons[1].isPressed)
 		{
@@ -318,7 +318,7 @@ public:
 				isTimerRunning = false;
 				isPaused = true;
 				elapsedTime += std::chrono::duration_cast<chronoSeconds>(steady_clock::now() - timerStart).count();
-				future = std::async(std::launch::async,[&]{play_sound("sounds/pause2.wav");});
+				play_sound("sounds/pause2.wav");
 			}
 			buttons[1].isPressed = false;
 		}
@@ -409,7 +409,7 @@ public:
 			isTimerRunning = false;
 			isTimerOver = false;
 			elapsedTime = 0;
-			future = std::async(std::launch::async ,[&]{play_sound("sounds/finish.wav");});
+			play_sound("sounds/finish.wav");
 			
 		}
 
