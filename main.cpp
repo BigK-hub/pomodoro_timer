@@ -13,7 +13,6 @@
 #include <iomanip>
 //#include <conio.h>
 #include <thread>
-#include <future>
 
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -225,7 +224,6 @@ public:
 		Time_Input(*this,olc::P, olc::vi2d(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.1),false,{0,25,0}, "Productive"),
 		Time_Input(*this,olc::B, olc::vi2d(SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.2),false,{0,10,0}, "Break")
 		};
-	std::future<void> future;
 
 	timePoint timerStart = steady_clock::now();
 	chronoSeconds currentTimerState = chronoSeconds(0);
